@@ -93,3 +93,15 @@ An explicit fourth request to reread the source triggered the original wiki.read
 The external host now lives at repository root in `/home/hunt/work/llm_wiki-web`. The upstream application is absent from the current checkout and retained in Git history for attribution. Assembly accepts an explicit offline `--source`, or fetches the same pinned commit from the official repository into an ignored bare cache. This layout change does not alter runtime adapters or the previously tested image.
 
 Layout checks passed: assembly from an explicit local upstream repository, assembly from a separate prepopulated bare cache, 475-blob integrity checks for both outputs, and four workspace-mode tests. First-time GitHub fetch did not complete in the current network and was stopped; online fetch is not claimed as verified. Fetches now have a 120-second timeout. No runtime rebuild was needed for path-only moves and dependency assembly changes.
+
+## Browser upload implementation — 2026-11-10
+
+Added authenticated POST `/_llmwiki/upload` to the external host, using the existing browser file chooser. Files stream into private, unique workspace staging directories, capped at 100 MiB per file and four active uploads. No project file is overwritten; unsuccessful staged uploads are removed.
+
+The optimized release build passed in 8m 06s using cached dependencies. TypeScript checks and frontend production build passed. All 475 original source blobs remained unchanged. Packaged image `llmwiki-unchanged-host:upload-20261110` has ID `sha256:ca15c1a67eb2836807a6849cb1918449b327ab1c670596773260d11ab5d52451`.
+
+`verify_uploads.py` passed inside the offline, non-root, read-only runtime: login and foreign-origin rejection; UTF-8 names/bytes; traversal and invalid filename rejection; unique same-name files; private permissions; empty files; a real streamed 100 MiB file; rejection above the limit; interrupted upload cleanup; staging symlink rejection; and reading the result through the original read_file command. Interrupted HTTP requests may close without a response; either a 400 or closed connection is accepted, but success or leftover partial files fail the check. Existing fixture/Agent/persistence and live model transport suites also passed on this image.
+
+The localhost:18922 preview now runs this image. Its previous container remains stopped as `llmwiki-web-live-preview-preupload-20261110`, and the synthetic workspace was backed up before replacement. Artifacts are under `/mnt/BACKUP/llmwiki-clean-build-20261106/upload-20261110/result/`.
+
+Browser inspection confirmed the original Sources → Import → From computer control and the file chooser opening. Automatic setFiles was blocked by the ChatGPT Chrome extension requiring Allow access to file URLs. No extension permission was changed. End-to-end browser upload/import is therefore pending user assistance, not claimed as passed. Upload staging retention is manual; downloads/assets, parser parity and other previously listed limitations remain pending.

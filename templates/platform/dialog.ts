@@ -24,7 +24,7 @@ export async function open(options: Options = {}): Promise<string | string[] | n
     const cancel = document.createElement('button'); cancel.textContent = '取消'
     const select = document.createElement('button'); select.textContent = '选择'
     const upload = document.createElement('button'); upload.textContent = '从电脑上传文件'
-    for (const b of [up, cancel, select]) b.style.cssText = 'padding:8px 16px;margin:4px;border:1px solid #888;border-radius:6px'
+    for (const b of [up, cancel, select, upload]) b.style.cssText = 'padding:8px 16px;margin:4px;border:1px solid #888;border-radius:6px'
     let path = info.root
     const selected = new Set<string>()
     const finish = (value: string | string[] | null) => { dialog.close(); dialog.remove(); resolve(value) }

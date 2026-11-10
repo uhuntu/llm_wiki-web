@@ -7,6 +7,7 @@ use std::io::{Write, Read};
 mod ui;
 #[path="fixture_model.rs"] mod fixture_model;
 #[path="model_relay.rs"] mod model_relay;
+#[path="uploads.rs"] mod uploads;
 
 struct Probe {
     model_trace: Arc<Mutex<Vec<serde_json::Value>>>,
@@ -128,6 +129,7 @@ pub fn serve() -> Result<(), String> {
             let name=parsed.query_pairs().find(|(key,_)|key=="event").map(|(_,value)|value.into_owned()).unwrap_or_default();ui::events(request,state.clone(),name);continue;
         }
         if request.method()==&tiny_http::Method::Post && url=="/_llmwiki/http" {let shared=state.clone();std::thread::spawn(move||model_relay::relay(request,&shared));continue;}
+        if request.method()==&tiny_http::Method::Post && url=="/_llmwiki/upload" {let shared=state.clone();std::thread::spawn(move||uploads::receive(request,&shared.root));continue;}
         if state.is_fixture()&&request.method()==&tiny_http::Method::Get && url=="/probe-trace" {reply(request,200,serde_json::json!({"calls":*state.model_trace.lock().unwrap()}));continue;}
         if url.starts_with("/_llmwiki/"){reply(request,501,serde_json::json!({"error":"Not yet supported by unchanged-source experiment"}));continue;}
         if request.method()==&tiny_http::Method::Get && (url=="/" || url.starts_with("/assets/") || url=="/vite.svg") {ui::static_file(request,&url);continue;}
