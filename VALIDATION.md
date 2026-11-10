@@ -105,3 +105,9 @@ The optimized release build passed in 8m 06s using cached dependencies. TypeScri
 The localhost:18922 preview now runs this image. Its previous container remains stopped as `llmwiki-web-live-preview-preupload-20261110`, and the synthetic workspace was backed up before replacement. Artifacts are under `/mnt/BACKUP/llmwiki-clean-build-20261106/upload-20261110/result/`.
 
 Browser inspection confirmed the original Sources → Import → From computer control and the file chooser opening. Automatic setFiles was blocked by the ChatGPT Chrome extension requiring Allow access to file URLs. No extension permission was changed. End-to-end browser upload/import is therefore pending user assistance, not claimed as passed. Upload staging retention is manual; downloads/assets, parser parity and other previously listed limitations remain pending.
+
+### Browser upload/import verified after manual selection
+
+The user manually selected the supplied synthetic text in Chrome without changing extension permissions. The authenticated upload and the original raw-source import both preserved all 173 bytes. Original Ollama analysis and generation completed, writing four files: the source summary, index, overview and log. The generated summary preserves COPPER-92F6 and the 23-day interval. Its successful ingest-cache SHA-256 matches the raw source.
+
+The queue created three unresolved review suggestions (two missing-page suggestions and one enrichment suggestion); these are retained, not approved automatically. The source badge initially remained Not ingested after generation, then correctly showed Ingested after the built-in refresh. This stale display is recorded as a remaining UI refresh issue. The prior pending-browser statement above is superseded for this manually selected text workflow. Other formats and automatic chooser control remain unverified. Screenshot: `.runtime/upload-20261110/success.jpg` (local evidence, not committed).
