@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>External Host Transport Probe</title>
+<style>body{max-width:900px;margin:40px auto;font:16px system-ui}button{padding:12px}pre{white-space:pre-wrap;background:#f2f4f8;padding:20px}</style>
+<h1>Original Agent · external HTTP/SSE probe</h1><p>Synthetic project and loopback mock model only. This page tests transport, not the original application UI.</p>
+<button id="run">Run original Agent</button><p id="status">Ready</p><pre id="events"></pre><pre id="session"></pre>
+<script>
+const button=document.querySelector('#run'),status=document.querySelector('#status'),events=document.querySelector('#events');
+button.onclick=()=>{button.disabled=true;events.textContent='';status.textContent='Connecting';const source=new EventSource('/events');
+source.onmessage=e=>{events.textContent+=e.data+'\n'};
+source.onerror=()=>{status.textContent='Stream disconnected';source.close();button.disabled=false};
+source.addEventListener('complete',async e=>{const result=JSON.parse(e.data);status.textContent=result.ok?'Complete: '+result.message:'Error: '+result.error;source.close();document.querySelector('#session').textContent=JSON.stringify(await(await fetch('/session')).json(),null,2);button.disabled=false});
+source.onopen=async()=>{status.textContent='Running';const response=await fetch('/run',{method:'POST'});if(!response.ok){status.textContent=await response.text();source.close();button.disabled=false}};
+};
+</script>
