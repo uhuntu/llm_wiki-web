@@ -19,6 +19,8 @@ For an offline build, pass `--source /path/to/local/llm_wiki` containing the pin
 - `verify_*.py`, `test_workspace_mode.py`: validation
 - `CONTAINER.md`, `VALIDATION.md`: deployment and evidence
 
+中文部署教程：[DEPLOY_CN.md](DEPLOY_CN.md)。实际服务器部署记录：[SERVER_DEPLOYMENT.md](SERVER_DEPLOYMENT.md)。
+
 ## Assemble and build
 
 From the repository root, choose a new output directory on a disk with sufficient space:
