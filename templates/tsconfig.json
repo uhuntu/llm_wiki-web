@@ -1,0 +1,5 @@
+{
+  "extends": "./upstream/tsconfig.app.json",
+  "compilerOptions": {"baseUrl":"./upstream","paths":{"@/*":["./src/*"]}},
+  "include": ["upstream/src", "platform"]
+}
