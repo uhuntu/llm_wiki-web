@@ -11,6 +11,8 @@ Status as of 2026-11-11. A successful text workflow does not certify every forma
 | Model routing/settings | Active HTTP model | Task-specific providers and configurable request timeouts |
 | Remote providers | Protocol-level checks, actual local Ollama | Credential-backed real provider validation |
 | CLI/cloud/clipper/API/MCP | Partial or unsupported routes | Implement external service transports and intended Web behavior |
-| Packaging/operations | Built images and standalone source, local single-user preview | First network build, sustained operation and server deployment |
+| Packaging/operations | Built images and standalone source, local single-user preview | First network build, sustained operation and backup/operations coverage |
 
 Known UI issue: ingest completion may require refresh to update its badge. Upload staging retention is manual. Desktop-specific behavior requires explicit Web equivalents.
+
+Server milestone: swc-build has an independent loopback-only deployment on port 18932 with original file RPC and restart persistence verified, plus browser access through SSH. No model or existing DG3 document import configured. See SERVER_DEPLOYMENT.md.
