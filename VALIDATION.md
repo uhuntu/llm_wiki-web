@@ -125,3 +125,11 @@ The packaged download image passed direct HTTP checks in an offline, non-root, r
 ### Browser project export — 2026-11-11
 
 Original Settings → Maintenance → Export project completed and Chrome downloaded `/home/hunt/Downloads/Web Wiki.llmwiki.zip` (14,025 bytes, 41 ZIP entries). ZIP integrity passed; the generated Chinese source summary, original uploaded text and ingest-cache.json match their project files byte for byte. SHA-256: `7a34963243f632893d69233331d20e39f0de14678d735fd300b07cf91976b6b9`. This supersedes the pending browser-export statement above. Local screenshot: `.runtime/download-20261111/export-success.jpg`.
+
+## Project archive round-trip — 2026-11-11
+
+The original import requires an empty destination. Added a Web directory-picker control to create a named directory, rejecting traversal names and existing names. An initial native prompt blocked Chrome automation, so the final control uses an inline field. TypeScript check and production frontend build passed. No upstream source files were edited.
+
+In an isolated packaged runtime, the browser-downloaded ZIP imported through the original Rust command: all 27 regular files matched, the restored project opened and a second import into the nonempty destination was rejected. The same downloaded bytes were copied to `/data/incoming/roundtrip.llmwiki.zip` for the browser's server-file picker, avoiding another manual upload. Browser import into newly created `/data/Restored Wiki` succeeded. The original UI requires selecting the imported project from Recent Projects; this was completed. The restored project's source page and 8-message chat history rendered. After restarting the preview, Restored Wiki reopened and its source page rendered again. The 27 imported files matched the archive before reopening.
+
+The new preview image is `llmwiki-unchanged-host:import-inline-20261111`. Local evidence: `.runtime/import-20261111/restored.jpg`. The existing `lastProject=null` startup issue remains pending: returning to the project list without opening another project and then restarting is not certified by this round-trip.

@@ -24,7 +24,13 @@ export async function open(options: Options = {}): Promise<string | string[] | n
     const cancel = document.createElement('button'); cancel.textContent = '取消'
     const select = document.createElement('button'); select.textContent = '选择'
     const upload = document.createElement('button'); upload.textContent = '从电脑上传文件'
-    for (const b of [up, cancel, select, upload]) b.style.cssText = 'padding:8px 16px;margin:4px;border:1px solid #888;border-radius:6px'
+    const mkdir = document.createElement('button'); mkdir.textContent = '新建目录'
+    const folderForm = document.createElement('div'); folderForm.hidden = true
+    const folderName = document.createElement('input'); folderName.placeholder = '新目录名称'; folderName.setAttribute('aria-label', '新目录名称')
+    folderName.style.cssText = 'padding:8px;border:1px solid #888;border-radius:6px'
+    const createFolder = document.createElement('button'); createFolder.textContent = '创建'
+    folderForm.append(folderName, createFolder)
+    for (const b of [up, cancel, select, upload, mkdir, createFolder]) b.style.cssText = 'padding:8px 16px;margin:4px;border:1px solid #888;border-radius:6px'
     let path = info.root
     const selected = new Set<string>()
     const finish = (value: string | string[] | null) => { dialog.close(); dialog.remove(); resolve(value) }
@@ -73,13 +79,30 @@ export async function open(options: Options = {}): Promise<string | string[] | n
       }
       input.click()
     }
+    mkdir.onclick = () => { folderForm.hidden = false; folderName.focus() }
+    createFolder.onclick = async () => {
+      const name = folderName.value.trim()
+      if (!name) return
+      if (name === '.' || name === '..' || /[\\/\x00-\x1f]/.test(name)) { list.textContent = '请输入有效的目录名称'; return }
+      const destination = `${path}/${name}`
+      mkdir.disabled = true; createFolder.disabled = true
+      try {
+        const entries = await invoke<Entry[]>('list_directory', { path, maxDepth: 1 })
+        if (entries.some((entry) => entry.name === name)) throw new Error('该名称已存在')
+        await invoke('create_directory', { path: destination })
+        await browse(destination)
+        folderForm.hidden = true; folderName.value = ''
+      } catch (error) { list.textContent = String(error) }
+      finally { mkdir.disabled = false; createFolder.disabled = false }
+    }
     select.onclick = () => {
       if (options.directory) finish(options.multiple ? [path] : path)
       else if (selected.size) finish([...selected])
     }
     dialog.oncancel = (event) => { event.preventDefault(); finish(null) }
-    dialog.append(title, current, up, list, cancel, select)
+    dialog.append(title, current, up, folderForm, list, cancel, select)
     if (!options.directory) dialog.append(upload)
+    if (options.directory && options.createDirectories) dialog.append(mkdir)
     document.body.append(dialog); dialog.showModal(); void browse(path)
   })
 }
