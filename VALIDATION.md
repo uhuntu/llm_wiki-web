@@ -121,3 +121,7 @@ The original source page and uploaded raw text render in the updated UI. The ass
 ### Direct asset-route verification — 2026-11-11
 
 The packaged download image passed direct HTTP checks in an offline, non-root, read-only container: exact UTF-8 file bytes and encoded filename headers, login enforcement, traversal rejection, symlink escape rejection, and sandbox CSP for HTML. These checks supersede the untested direct-route statement above. Browser project export and byte ranges remain separate pending work. Reproduce by mounting `verify_asset_delivery.py` as `/check.py` and running it with the image's Python entrypoint.
+
+### Browser project export — 2026-11-11
+
+Original Settings → Maintenance → Export project completed and Chrome downloaded `/home/hunt/Downloads/Web Wiki.llmwiki.zip` (14,025 bytes, 41 ZIP entries). ZIP integrity passed; the generated Chinese source summary, original uploaded text and ingest-cache.json match their project files byte for byte. SHA-256: `7a34963243f632893d69233331d20e39f0de14678d735fd300b07cf91976b6b9`. This supersedes the pending browser-export statement above. Local screenshot: `.runtime/download-20261111/export-success.jpg`.
