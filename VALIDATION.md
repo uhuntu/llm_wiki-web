@@ -117,3 +117,7 @@ The queue created three unresolved review suggestions (two missing-page suggesti
 Added the original `convertFileSrc` route. It serves regular files only from the canonical workspace, requires the same one-use-login cookie as other Web routes, rejects traversal and symlink escapes, uses UTF-8-safe inline names and known media MIME types, disables caching, and applies a sandbox CSP to HTML/SVG/XML. The preview was updated to image `sha256:7974574bd45360f92a243a834c373e146d52b8a69483474711ec1a20152d0dba`; its read-only non-root container restored the existing Wiki and source history. The previous preview remains stopped for rollback.
 
 The original source page and uploaded raw text render in the updated UI. The asset response route compiled into this image; a direct browser download/asset fetch was not separately exercised in this turn. HTTP byte ranges and directory-browser route support remain pending.
+
+### Direct asset-route verification — 2026-11-11
+
+The packaged download image passed direct HTTP checks in an offline, non-root, read-only container: exact UTF-8 file bytes and encoded filename headers, login enforcement, traversal rejection, symlink escape rejection, and sandbox CSP for HTML. These checks supersede the untested direct-route statement above. Browser project export and byte ranges remain separate pending work. Reproduce by mounting `verify_asset_delivery.py` as `/check.py` and running it with the image's Python entrypoint.
