@@ -16,7 +16,7 @@ struct Probe {
     root: std::path::PathBuf,
     settings: Mutex<serde_json::Value>,
     ui_events: Mutex<std::collections::HashMap<String,Vec<SyncSender<String>>>>,
-    project: types::wiki::WikiProject,
+    project: Option<types::wiki::WikiProject>,
     fixture_model: Option<agent::provider::LlmConfig>,
     sessions: agent::session::AgentSessionStore,
     cancels: agent::cancel::AgentCancellationRegistry,
@@ -65,10 +65,12 @@ pub fn serve() -> Result<(), String> {
         Err(error)=>return Err(error.to_string()),
     };
     let project=if let Some(settings)=&saved {
+        if settings.get("lastProject").map(|p|p.is_null()).unwrap_or(true){None}else{
         let path=settings["lastProject"]["path"].as_str().ok_or("Saved project path missing; refusing to replace saved settings")?;
         let candidate=std::path::Path::new(path);
         if candidate.components().any(|c|matches!(c,std::path::Component::ParentDir))||!candidate.canonicalize().map_err(|e|e.to_string())?.starts_with(&root){return Err("Saved project is outside fixture root".into());}
-        commands::project::open_project(path.into())?
+        Some(commands::project::open_project(path.into())?)
+        }
     }else{
         let name=if mode=="fixture"{format!("http-fixture-{}",Uuid::new_v4())}else{"Web Wiki".into()};
         let project=commands::project::create_project(name,root.to_string_lossy().into_owned())?;
@@ -76,16 +78,16 @@ pub fn serve() -> Result<(), String> {
             tauri::async_runtime::block_on(commands::fs::write_file(format!("{}/wiki/concepts/fixture.md",project.path),
                 "---\ntitle: Fixture\ntype: concept\n---\n# Fixture\nThe fixture color is blue.\n".into()))?;
         }
-        project
+        Some(project)
     };
     let (fixture_model,model_trace)=if mode=="fixture"{
         let (port,trace)=fixture_model::start()?;
         let config:agent::provider::LlmConfig=serde_json::from_value(serde_json::json!({"provider":"custom","model":"fixture","customEndpoint":format!("http://127.0.0.1:{port}/v1"),"streamingEnabled":true,"maxTokens":100})).map_err(|e|e.to_string())?;
         (Some(config),trace)
     }else{(None,Arc::new(Mutex::new(Vec::new())))};
-    let mut settings=saved.unwrap_or_else(||serde_json::json!({"language":"en","lastProject":{"id":"fixture","name":project.name,"path":project.path},"projectRegistry":{"fixture":{"id":"fixture","name":project.name,"path":project.path}},
+    let mut settings=saved.unwrap_or_else(||{let project=project.as_ref().expect("new workspace project");serde_json::json!({"language":"en","lastProject":{"id":"fixture","name":project.name,"path":project.path},"projectRegistry":{"fixture":{"id":"fixture","name":project.name,"path":project.path}},
         "llmConfig":{"provider":"custom","apiKey":"","model":"","ollamaUrl":"http://127.0.0.1:11434","customEndpoint":"","maxContextSize":50000,"streamingEnabled":true},
-        "generalConfig":{"autostart":false,"closeBehavior":"exit"},"updateCheckState":{"enabled":false},"sourceWatchConfig":{"enabled":false,"autoIngest":false}}));
+        "generalConfig":{"autostart":false,"closeBehavior":"exit"},"updateCheckState":{"enabled":false},"sourceWatchConfig":{"enabled":false,"autoIngest":false}})});
     if let Some(model)=&fixture_model{
         // The fixture owns this volatile port. Live configurations are never
         // rewritten on startup, and a missing live model never falls back.
@@ -138,7 +140,7 @@ pub fn serve() -> Result<(), String> {
         if !state.is_fixture(){reply(request,404,serde_json::json!({"error":"Unknown Web route"}));continue;}
         match (request.method().as_str(),url.as_str()) {
             ("GET","/probe")=>{let _=request.respond(tiny_http::Response::from_string(include_str!("probe.html")).with_header(tiny_http::Header::from_bytes("Content-Type","text/html; charset=utf-8").unwrap()).with_header(tiny_http::Header::from_bytes("Cache-Control","no-store").unwrap()));}
-            ("GET","/session")=>reply(request,200,serde_json::json!({"messages":state.sessions.recent_messages(&state.project.path,"http-probe",10)})),
+            ("GET","/session")=>reply(request,200,serde_json::json!({"messages":state.sessions.recent_messages(&state.project.as_ref().expect("fixture project").path,"http-probe",10)})),
             ("GET","/events")=>{
                 let (sender,receiver)=sync_channel::<String>(128);
                 let mut subscriber=state.subscriber.lock().unwrap();
@@ -153,7 +155,7 @@ pub fn serve() -> Result<(), String> {
                         alive=writer.write_all(frame.as_bytes()).and_then(|_|writer.flush()).is_ok();
                     }
                     shared.subscriber.lock().unwrap().take();
-                    shared.cancels.cancel(&shared.project.name,"http-probe",None);
+                    shared.cancels.cancel(&shared.project.as_ref().expect("fixture project").name,"http-probe",None);
                 });
             }
             ("POST","/run")=>{
@@ -165,16 +167,16 @@ pub fn serve() -> Result<(), String> {
                     let run_id=Uuid::new_v4().to_string();
                     let input:agent::AgentChatRequest=serde_json::from_value(serde_json::json!({"message":"What color is the fixture?","sessionId":"http-probe","runId":run_id,"mode":"fast"})).unwrap();
                     let user=input.message.clone();
-                    let token=shared.cancels.start(&shared.project.name,"http-probe",&run_id);
-                    let output=sender.clone();let cancels=shared.cancels.clone();let project_id=shared.project.name.clone();let active_run=run_id.clone();
+                    let token=shared.cancels.start(&shared.project.as_ref().expect("fixture project").name,"http-probe",&run_id);
+                    let output=sender.clone();let cancels=shared.cancels.clone();let project_id=shared.project.as_ref().expect("fixture project").name.clone();let active_run=run_id.clone();
                     let sink:agent::runtime::AgentEventSink=Arc::new(move |mut event|{
                         event.redact_for_external_api();
                         if output.try_send(format!("data: {}\n\n",serde_json::to_string(&event).unwrap())).is_err(){cancels.cancel(&project_id,"http-probe",Some(&active_run));}
                     });
-                    let runtime=agent::AgentRuntime::new(&shared.project.name,&shared.project.path,None,Some(shared.active_model().expect("fixture configuration")),None,None);
+                    let runtime=agent::AgentRuntime::new(&shared.project.as_ref().expect("fixture project").name,&shared.project.as_ref().expect("fixture project").path,None,Some(shared.active_model().expect("fixture configuration")),None,None);
                     let result=tauri::async_runtime::block_on(runtime.run_once_with_cancel_and_events(input,Some(token),Some(sink)));
-                    shared.cancels.finish(&shared.project.name,"http-probe",&run_id);
-                    let final_value=match result {Ok(response)=>{shared.sessions.append_turn(&shared.project.path,&shared.project.name,&response.session_id,&user,&response.message);serde_json::json!({"ok":true,"message":response.message})},Err(e)=>serde_json::json!({"ok":false,"error":e})};
+                    shared.cancels.finish(&shared.project.as_ref().expect("fixture project").name,"http-probe",&run_id);
+                    let final_value=match result {Ok(response)=>{shared.sessions.append_turn(&shared.project.as_ref().expect("fixture project").path,&shared.project.as_ref().expect("fixture project").name,&response.session_id,&user,&response.message);serde_json::json!({"ok":true,"message":response.message})},Err(e)=>serde_json::json!({"ok":false,"error":e})};
                     let _=sender.try_send(format!("event: complete\ndata: {final_value}\n\n"));
                     shared.running.store(false,Ordering::SeqCst);
                 });
