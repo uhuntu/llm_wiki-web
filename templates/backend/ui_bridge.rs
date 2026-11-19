@@ -89,7 +89,12 @@ pub(super) fn invoke(state:&Arc<Probe>,command:&str,args:&Value)->Result<Value,S
     }
 }
 fn emit(state:&Probe,name:&str,value:Value){
-    if let Some(list)=state.ui_events.lock().unwrap().get_mut(name){list.retain(|sender|sender.try_send(format!("data: {value}\n\n")).is_ok());}
+    let mut listeners=state.ui_events.lock().unwrap();
+    if let Some(list)=listeners.get_mut(name){list.retain(|sender|sender.try_send(format!("data: {value}\n\n")).is_ok());}
+    if name!="_web_all" {
+        let frame=format!("data: {}\n\n",json!({"event":name,"payload":value}));
+        if let Some(list)=listeners.get_mut("_web_all"){list.retain(|sender|sender.try_send(frame.clone()).is_ok());}
+    }
 }
 pub(super) fn events(request:tiny_http::Request,state:Arc<Probe>,name:String){
     let (sender,receiver)=sync_channel::<String>(128);

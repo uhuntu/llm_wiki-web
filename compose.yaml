@@ -1,0 +1,20 @@
+services:
+  wiki:
+    image: ${LLMWIKI_IMAGE:?Set LLMWIKI_IMAGE to a published release or local image tag}
+    network_mode: host
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 512
+    tmpfs:
+      - /tmp:rw,nosuid,size=128m
+    volumes:
+      - ./llmwiki-data:/data
+    command: [--mode, live, --port, "${WEB_PORT:-18932}"]
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

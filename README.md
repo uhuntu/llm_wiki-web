@@ -21,6 +21,28 @@ For an offline build, pass `--source /path/to/local/llm_wiki` containing the pin
 
 中文部署教程：[DEPLOY_CN.md](DEPLOY_CN.md)。实际服务器部署记录：[SERVER_DEPLOYMENT.md](SERVER_DEPLOYMENT.md)。
 
+## Docker Compose (Linux amd64)
+
+A public prebuilt image has not been published yet. For now, build a local image using the instructions below and set `LLMWIKI_IMAGE` to its tag. Once an accepted preview is published to GHCR, use that exact version tag instead.
+
+```sh
+cp .env.example .env
+# Edit LLMWIKI_IMAGE in .env to the image tag you built or downloaded.
+mkdir -p llmwiki-data
+chmod 700 llmwiki-data
+export LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
+docker compose up -d
+docker compose logs --tail 10 wiki
+```
+
+Open the one-use login URL printed in the logs. On a remote server, forward the same port with SSH and replace `localhost` in the URL with `127.0.0.1`:
+
+```sh
+ssh -N -L 127.0.0.1:18932:127.0.0.1:18932 user@server
+```
+
+Keep `.env` and `llmwiki-data/` private. The bind directory must be writable by the configured UID/GID. The service uses host networking and listens only on loopback; `ports:` is deliberately unnecessary. Docker Compose and an available port are prerequisites. See [RELEASING.md](RELEASING.md) for the preview publication process.
+
 ## Assemble and build
 
 From the repository root, choose a new output directory on a disk with sufficient space:

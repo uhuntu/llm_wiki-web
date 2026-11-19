@@ -9,6 +9,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root',type=Path);parser.add_argument('binary',type=Path)
     parser.add_argument('--workspace',type=Path,required=True);parser.add_argument('--port',type=int,default=18942)
+    parser.add_argument('--multiplex',action='store_true',help='Verify Agent events over the shared browser event stream')
     args=parser.parse_args();args.workspace.mkdir(parents=True,exist_ok=True,mode=0o700)
     seen=[];slow=threading.Event()
     class Model(BaseHTTPRequestHandler):
@@ -79,7 +80,7 @@ def main():
         worker=threading.Thread(target=lambda:relay(target,'slow'));worker.start();assert slow.wait(5)
         begin=time.monotonic();invoke('_web_info',{});assert time.monotonic()-begin<0.8;worker.join()
         print('PASS: exact endpoint scope, server-side auth/custom headers, UTF-8 streaming, HTTP errors, rate-limit headers, redirects, truncated streams and concurrent UI RPC',flush=True)
-        events=opener.open(base+'/_llmwiki/events?event=agent-event',timeout=20)
+        events=opener.open(base+'/_llmwiki/events?event='+('_web_all' if args.multiplex else 'agent-event'),timeout=20)
         assert events.readline().startswith(b': ready');events.readline()
         project=store('get','lastProject');run='transport-'+str(time.time_ns())
         invoke('agent_start_turn_stream',{'projectId':project['id'],'request':{'message':'transport-agent-proof','sessionId':'transport-session','runId':run,'mode':'fast','persistSession':True}})
@@ -89,6 +90,9 @@ def main():
             assert line,'Agent stream closed early'
             if line.startswith(b'data:'):
                 event=json.loads(line[5:])
+                if args.multiplex:
+                    assert event['event']=='agent-event',event
+                    event=event['payload']
                 if event['runId']==run:
                     payload=event['event'];assert payload['type']!='error',payload
                     done=payload['type']=='done'
