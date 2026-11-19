@@ -7,6 +7,43 @@ The host now has two distinct model modes:
 - `live`: uses the model saved through the original Settings UI. A missing configuration is an error; no synthetic answer or model fallback is substituted.
 - `fixture`: starts the deterministic local protocol model for isolated regression checks. Only its own exact endpoint is allowed.
 
+## Quick start with Docker (Linux amd64)
+
+The prebuilt preview image is `ghcr.io/uhuntu/llm_wiki-web:v0.1.0-preview.1`. It is publicly available; anonymous manifest access has been verified. Fresh-image startup and end-to-end acceptance of this published version are still pending. Complete desktop feature parity is not yet available.
+
+Install Docker Engine and the Compose plugin, then run:
+
+```sh
+git clone https://github.com/uhuntu/llm_wiki-web.git
+cd llm_wiki-web
+cp .env.example .env
+mkdir -p llmwiki-data
+chmod 700 llmwiki-data
+export LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
+docker compose pull
+docker compose up -d
+docker compose logs --tail 10 wiki
+```
+
+Open the one-use login URL printed in the logs. On a remote server, forward the same port with SSH and replace `localhost` in the URL with `127.0.0.1`:
+
+```sh
+ssh -N -L 127.0.0.1:18932:127.0.0.1:18932 user@server
+```
+
+Keep `.env` and `llmwiki-data/` private. The bind directory must be writable by the configured UID/GID. The service uses host networking and listens only on loopback; `ports:` is deliberately unnecessary. Docker Compose and an available port are prerequisites. See [RELEASING.md](RELEASING.md) for the preview publication process.
+
+## Sign in and configure a model
+
+Open the one-use login URL from the container logs. If it says the ticket was already used, open the normal root URL with the same browser host. Login cookies last one hour; when no authenticated session remains, restart the service after active jobs finish to obtain a fresh URL:
+
+```sh
+docker compose restart wiki
+docker compose logs --tail 10 wiki
+```
+
+A new data directory starts with an empty `Web Wiki` project. In **Settings → LLM Models**, configure and activate your HTTP model provider. Keep Chat/Ingest on **Use active model**. Uploaded documents must finish ingestion before knowledge-base search and Q&A can find them. Model credentials and project files are saved under `llmwiki-data/`; keep this directory when replacing a container.
+
 ## Repository layout and upstream dependency
 
 This repository contains only the external Web host, adapters and checks. The original desktop source is a build dependency, not part of the current checkout. `prepare.py` fetches the pinned upstream commit into `.cache/upstream.git` on first use, then exports and verifies it in the output directory. Subsequent assemblies reuse the cache. Git and network access to GitHub are required for the initial fetch.
@@ -21,29 +58,9 @@ For an offline build, pass `--source /path/to/local/llm_wiki` containing the pin
 
 中文部署教程：[DEPLOY_CN.md](DEPLOY_CN.md)。实际服务器部署记录：[SERVER_DEPLOYMENT.md](SERVER_DEPLOYMENT.md)。
 
-## Docker Compose (Linux amd64)
+## Developers: build from source
 
-A public prebuilt image has not been published yet. For now, build a local image using the instructions below and set `LLMWIKI_IMAGE` to its tag. Once an accepted preview is published to GHCR, use that exact version tag instead.
-
-```sh
-cp .env.example .env
-# Edit LLMWIKI_IMAGE in .env to the image tag you built or downloaded.
-mkdir -p llmwiki-data
-chmod 700 llmwiki-data
-export LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)"
-docker compose up -d
-docker compose logs --tail 10 wiki
-```
-
-Open the one-use login URL printed in the logs. On a remote server, forward the same port with SSH and replace `localhost` in the URL with `127.0.0.1`:
-
-```sh
-ssh -N -L 127.0.0.1:18932:127.0.0.1:18932 user@server
-```
-
-Keep `.env` and `llmwiki-data/` private. The bind directory must be writable by the configured UID/GID. The service uses host networking and listens only on loopback; `ports:` is deliberately unnecessary. Docker Compose and an available port are prerequisites. See [RELEASING.md](RELEASING.md) for the preview publication process.
-
-## Assemble and build
+This optional path is for developing or compiling the application yourself. It requires Git, Python, Node/npm, Rust/Cargo and the native Linux dependencies described in [CONTAINER.md](CONTAINER.md). Replace both `/path/to/...` placeholders with absolute paths. The output directory must not already exist.
 
 From the repository root, choose a new output directory on a disk with sufficient space:
 
