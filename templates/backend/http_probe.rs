@@ -99,6 +99,7 @@ pub fn serve() -> Result<(), String> {
 
     let label=if state.is_fixture(){"LLM Wiki fixture"}else{"LLM Wiki Web"};
     println!("{label}: http://localhost:{port}/login?ticket={ticket}");
+    let login_code = std::env::var("LLMWIKI_LOGIN_CODE").ok().filter(|code| code.len() >= 32);
     for mut request in server.incoming_requests() {
         let host=request.headers().iter().find(|h|h.field.equiv("Host")).map(|h|h.value.as_str()).unwrap_or("");
         if host!=format!("localhost:{port}") && host!=format!("127.0.0.1:{port}"){reply(request,403,serde_json::json!({"error":"Host rejected"}));continue;}
@@ -108,6 +109,35 @@ pub fn serve() -> Result<(), String> {
             }
         }
         let url=request.url().to_string();
+        if let Some(code) = &login_code {
+            if url == "/login" {
+                if request.method() == &tiny_http::Method::Get {
+                    login_page(request, false);
+                } else if request.method() == &tiny_http::Method::Post {
+                    let mut body = String::new();
+                    let read = request.as_reader().take(1025).read_to_string(&mut body);
+                    let mut form = reqwest::Url::parse("http://localhost/").unwrap();
+                    form.set_query(Some(&body));
+                    let valid = read.is_ok() && body.len() <= 1024
+                        && form.query_pairs().any(|(key, value)| {
+                            use sha2::{Digest, Sha256};
+                            key == "code" && Sha256::digest(value.as_bytes()).iter()
+                                .zip(Sha256::digest(code.as_bytes())).fold(0u8, |diff, (a, b)| diff | (*a ^ b)) == 0
+                        });
+                    if valid {
+                        let _ = request.respond(tiny_http::Response::empty(303)
+                            .with_header(tiny_http::Header::from_bytes("Location", "/").unwrap())
+                            .with_header(tiny_http::Header::from_bytes("Set-Cookie",
+                                format!("external_probe={}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800",state.cookie)).unwrap()));
+                    } else {
+                        login_page(request, true);
+                    }
+                } else {
+                    reply(request, 405, serde_json::json!({"error":"Method not allowed"}));
+                }
+                continue;
+            }
+        }
         if request.method()==&tiny_http::Method::Get && url.starts_with("/login?ticket=") {
             let valid={let mut saved=state.ticket.lock().unwrap();if saved.as_deref()==url.strip_prefix("/login?ticket="){saved.take();true}else{false}};
             if !valid{reply(request,401,serde_json::json!({"error":"Invalid or used ticket"}));continue;}
@@ -116,7 +146,18 @@ pub fn serve() -> Result<(), String> {
             continue;
         }
         let authenticated=request.headers().iter().filter(|h|h.field.equiv("Cookie")).any(|h|h.value.as_str().split(';').any(|v|v.trim()==format!("external_probe={}",state.cookie)));
-        if !authenticated{reply(request,401,serde_json::json!({"error":"Login required"}));continue;}
+        if !authenticated {
+            let browser_navigation = url == "/" && request.method() == &tiny_http::Method::Get
+                && request.headers().iter().any(|header| header.field.equiv("Accept")
+                    && header.value.as_str().contains("text/html"));
+            if login_code.is_some() && browser_navigation {
+                let _ = request.respond(tiny_http::Response::empty(303)
+                    .with_header(tiny_http::Header::from_bytes("Location", "/login").unwrap()));
+            } else {
+                reply(request, 401, serde_json::json!({"error":"Login required"}));
+            }
+            continue;
+        }
         if request.method()==&tiny_http::Method::Post && url=="/login-ticket" {
             let ticket=Uuid::new_v4().to_string();*state.ticket.lock().unwrap()=Some(ticket.clone());
             reply(request,200,serde_json::json!({"url":format!("http://localhost:{port}/login?ticket={ticket}")}));continue;
@@ -186,4 +227,22 @@ pub fn serve() -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+fn login_page(request: tiny_http::Request, invalid: bool) {
+    let error = if invalid { "<p role=alert>Incorrect access code.</p>" } else { "" };
+    let html = format!(concat!(
+        "<!doctype html><html lang=en><meta charset=utf-8>",
+        "<meta name=viewport content='width=device-width,initial-scale=1'>",
+        "<title>Sign in to LLM Wiki</title><main><h1>Sign in to LLM Wiki</h1>{}",
+        "<form action=/login method=post><label>Access code ",
+        "<input name=code type=password autocomplete=current-password required></label> ",
+        "<button type=submit>Sign in</button></form></main></html>"
+    ), error);
+    let _ = request.respond(tiny_http::Response::from_string(html)
+        .with_status_code(if invalid { 401 } else { 200 })
+        .with_header(tiny_http::Header::from_bytes("Content-Type", "text/html; charset=utf-8").unwrap())
+        .with_header(tiny_http::Header::from_bytes("Cache-Control", "no-store").unwrap())
+        .with_header(tiny_http::Header::from_bytes("Content-Security-Policy",
+            "default-src 'none'; form-action 'self'; frame-ancestors 'none'").unwrap()));
 }

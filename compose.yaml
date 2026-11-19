@@ -1,6 +1,8 @@
 services:
   wiki:
     image: ${LLMWIKI_IMAGE:?Set LLMWIKI_IMAGE to a published release or local image tag}
+    environment:
+      LLMWIKI_LOGIN_CODE: "${LLMWIKI_LOGIN_CODE:-}"
     network_mode: host
     user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     restart: unless-stopped

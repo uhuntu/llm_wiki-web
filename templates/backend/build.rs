@@ -18,6 +18,19 @@ fn main() {
             assert!(name.chars().all(|c|c.is_ascii_alphanumeric()||c=='_'));
             if name=="provider"{
                 graph.push_str(&format!("pub mod provider {{ include!({:?}); include!({:?}); }}\n",source.join("agent/provider.rs"),host.join("provider_extension.rs")));
+            }else if name=="runtime"{
+                let original=source.join("agent/runtime.rs");
+                let generated=PathBuf::from(env::var("OUT_DIR").unwrap()).join("web_agent_runtime.rs");
+                println!("cargo:rerun-if-changed={}",original.display());
+                let runtime=fs::read_to_string(original).unwrap();
+                let runtime=replace_once(&runtime,
+                    "if request.retrieval_mode == AgentRetrievalMode::Faithful && request.tools.wiki {",
+                    "if matches!(request.retrieval_mode, AgentRetrievalMode::Standard | AgentRetrievalMode::Faithful) && request.tools.wiki {");
+                let runtime=replace_once(&runtime,
+                    "match generate_with_cancellation(&client, &system, &user, images, cancellation)",
+                    "match web_generate_with_retry(&client, &system, &user, images, cancellation)");
+                fs::write(&generated,runtime).unwrap();
+                graph.push_str(&format!("pub mod runtime {{ include!({generated:?}); include!({:?}); }}\n",host.join("agent_runtime_extension.rs")));
             }else{graph.push_str(&format!("#[path={:?}] pub mod {};\n",source.join("agent").join(format!("{name}.rs")),name));}
         }else if line.starts_with("pub use ")&&line.ends_with(';'){graph.push_str(line);graph.push('\n');}
         else{panic!("unsupported upstream Agent declaration: {line}");}
@@ -40,4 +53,10 @@ fn main() {
     fs::write(PathBuf::from(env::var("OUT_DIR").unwrap()).join("host_module_graph.rs"),graph).unwrap();
     let windows=tauri_build::WindowsAttributes::new().app_manifest(include_str!("../upstream/src-tauri/windows-app-manifest.xml"));
     tauri_build::try_build(tauri_build::Attributes::new().windows_attributes(windows)).expect("Tauri dependency build metadata");
+}
+
+
+fn replace_once(source: &str, before: &str, after: &str) -> String {
+    assert_eq!(source.matches(before).count(), 1, "Upstream Agent hook changed: {before}");
+    source.replacen(before, after, 1)
 }
