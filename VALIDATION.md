@@ -161,3 +161,29 @@ Limitations observed: the generated Wiki omitted the original random validation 
 The original raw text under `raw/sources/amber-harbor-20261119.txt` was byte-identical to the staged import input and still contained LIME-7392. The existing Raw sources only retrieval mode recovered LIME-7392 with a raw-source citation in both Fast and Standard Agent modes. This confirms a supported original-source path despite Wiki summary omissions; automatic fallback in Standard retrieval is not certified.
 
 Repeating the initial Standard retrieval + Standard Agent question failed again, this time with `LLM response did not contain assistant content`. Therefore the earlier HTTP 500 must not be marked fixed. Two small direct non-streaming requests (plain and JSON tool-planner output, 8192 max_tokens) returned nonempty content and finish_reason=stop. They also returned a separate reasoning_content field; reasoning was not used as an answer. The failure depends on more than the minimal wire protocol; exact failing payload/service-side diagnostics are still needed. No provider implementation was changed and no synthetic answer or silent mode switch was introduced. The visible test controls were left at the validated Raw sources only + Fast combination.
+
+
+### 2026-11-19: DG3 pilot relative Markdown navigation
+
+- Copied six further referenced Markdown pages unchanged into the independent DG3 Pilot workspace. The workspace now contains 18 Markdown files, including its scaffolding. All 36 relative Markdown links resolve on disk.
+- Browser testing exposed `Unknown Web route` for ordinary relative `.md` links. Added a guarded Vite transform of WikiReader that resolves these links relative to the current page and opens existing indexed pages within the wiki root. The pinned upstream source archive remains unchanged.
+- Frontend build, TypeScript check, and verification of all 475 original files passed. Handler checks covered sibling/parent paths, encoded Unicode, fragments, external links, root escape, missing files, malformed encoding, PDF links, and existing wikilinks.
+- Deployed a frontend-only derived image `llmwiki-web:relative-links-preview` on swc-build, retaining the preview.2 backend and data. Rollback container: `llmwiki-web-server-before-links-20261119154430`.
+- Live browser checks passed: overview → EMV certification → lab selection → certification → monthly lessons. This verifies sibling, reverse, and parent-directory navigation. No model requests were made during this validation.
+- This local derived image is not yet published to GHCR. The graph currently reports no edges for these ordinary Markdown links; navigation acceptance does not certify graph extraction.
+
+
+### 2026-11-19: DG3 search and ordinary Markdown graph links
+
+- Live browser search for `EMV` returned 9 pages. Opening the lab-selection result displayed the correct indexed page.
+- Confirmed the graph initially showed 15/18 pages and 0/0 edges. The pinned graph extractor only considers wikilinks and frontmatter related entries.
+- Added a guarded frontend build transform to include existing relative inline Markdown page links when extracting graph relations. It excludes external/root-absolute URLs, images, missing paths, paths outside the wiki root, fenced code and inline code. Reference-style Markdown links are not covered by this adapter.
+- Build and extraction regression cases passed; all 475 upstream source files remain unchanged. No model requests were needed.
+- Deployed `llmwiki-web:graph-links-preview`, retaining the preview.2 backend and workspace. Rollback: `llmwiki-web-server-before-graph-20261119155041`.
+- Live browser graph now reports **15/18 pages, 17/17 links**, with 3 pages hidden by the original graph filters. This supersedes the zero-edge observation above. This is the frontend display graph; it does not certify backend retrieval-graph or vector-search behavior.
+- Both frontend fixes remain local/server preview changes, not published to GHCR.
+
+- Follow-up browser checks: Chinese keyword `摄像头` returned four pages, with the camera selection topic first. An unmatched single token showed “No results found.” An underscore-separated query matched the common token `no`, consistent with token-based matching.
+- Hiding the ECR type reduced the displayed graph from 15 pages and 17 links to 10 pages and 11 links. Re-enabling it restored the original counts. Hiding isolated nodes did not change the counts in this view. The original filter settings were restored.
+
+- Live review acceptance used a separate `Review Acceptance` project with one synthetic pending item. Confirming the item created `wiki/queries/synthetic-review-acceptance.md`. After a full browser reload, Review showed the saved creation result and no pending badge. Returned the browser to DG3 Pilot.
