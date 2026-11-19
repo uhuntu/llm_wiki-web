@@ -83,6 +83,12 @@ Run `run_probe.py --mode fixture` with a separate workspace for the isolated syn
 
 For development, `prepare.py --node-modules /absolute/path/to/node_modules` explicitly reuses a dependency cache instead of `npm ci`. Linux native Tauri/GTK/WebKit/protobuf dependencies are required. See [CONTAINER.md](CONTAINER.md) for Docker and build-proxy configuration.
 
+## Answering from original documents
+
+Wiki generation summarizes sources and may omit exact identifiers or details. When exact source wording matters, select **Raw sources only** in the chat retrieval selector. Server acceptance recovered a validation code omitted from the generated Wiki, with a citation to the original raw file, in both Fast and Standard Agent modes. This is an explicit retrieval mode, not an automatic guarantee for Standard retrieval. Original files are retained under the project's `raw/sources/` directory.
+
+The tested remote gpt-oss-120b service intermittently failed with HTTP 500 or empty assistant content in Standard retrieval + Standard Agent mode. The cause remains under investigation; do not treat successful connection tests as a reliability guarantee. See [VALIDATION.md](VALIDATION.md).
+
 ## Shared model configuration and transport
 
 Browser generation requests and backend Agent turns use the current saved `llmConfig`. Each Agent turn captures one configuration snapshot. The authenticated HTTP relay accepts only the exact generation URL(s) derived from that configuration, disables redirects, preserves response streaming/status/Retry-After, and rejects truncated responses rather than fabricating completion. Model credentials and required headers are rebuilt server-side; browser-supplied credentials, cookies and hop-by-hop headers cannot replace them.
