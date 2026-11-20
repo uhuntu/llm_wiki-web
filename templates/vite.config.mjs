@@ -65,9 +65,41 @@ function extractMarkdownGraphLinks(content: string, filePath: string, wikiRoot: 
     },
   }
 }
+// Install before stylesheet tags so a failed first load can recover without a reload.
+function retryStylesheet() {
+  return {
+    name: 'external-retry-stylesheet',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        return html.replace('<head>', `<head><script>
+document.addEventListener('error', (event) => {
+  const link = event.target
+  if (!(link instanceof HTMLLinkElement) || link.rel !== 'stylesheet') return
+  const url = new URL(link.href)
+  if (url.origin !== location.origin || !url.pathname.startsWith('/assets/') ||
+      !url.pathname.endsWith('.css') || link.dataset.styleRetry === '1') return
+  const retry = link.cloneNode()
+  retry.dataset.styleRetry = '1'
+  link.replaceWith(retry)
+}, true)
+</script>`)
+      },
+    },
+  }
+}
+// This host has no desktop clip service to poll.
+const disableDesktopClipWatcher = {
+  name: 'external-disable-desktop-clip-watcher',
+  enforce: 'pre',
+  transform(_code, id) {
+    if (!id.endsWith('/src/lib/clip-watcher.ts')) return
+    return 'export function startClipWatcher() {}\nexport function stopClipWatcher() {}'
+  },
+}
 export default defineConfig({
   root: upstream,
-  plugins: [{name:'external-native-fetch-boundary',transformIndexHtml:{order:'pre',handler(html){return html.replace('<head>',`<head><script>
+  plugins: [disableDesktopClipWatcher, retryStylesheet(), {name:'external-native-fetch-boundary',transformIndexHtml:{order:'pre',handler(html){return html.replace('<head>',`<head><script>
 (function(){const native=window.fetch.bind(window);window.fetch=function(input,init){const url=new URL(input instanceof Request?input.url:String(input),location.href);if(url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)&&['19827','19828'].includes(url.port)){const target='/_llmwiki/unavailable/'+url.port+url.pathname+url.search;return native(input instanceof Request?new Request(target,input):target,init)}return native(input,init)}})();
 </script>`)}}},relativeWikiLinks(),markdownGraphLinks(),react(),tailwindcss()],
   resolve: { alias: {...Object.fromEntries(replacements.map(([name,file])=>[name,path.join(host,'platform',file+'.ts')])), '@':path.join(upstream,'src')} },
